@@ -1,0 +1,17 @@
+# coding: utf-8
+
+home      = ENV["HOME"]
+
+BaseDir   = "#{home}/data/seesaw"
+SambaLog  = "/var/log/smb_acc.log"
+
+TargetDir = [ "#{home}/video/mp4",  ]
+TargetExt = [ "mp4", "ts" ]
+Exclude   = [ "シネマ",  ]
+
+RefreshPeriod = 3600            # データ更新周期(秒)
+DoneTime      = 60              # 視聴済にする再生時間(秒)
+FlipDelay     = 60              # close から反転処理までの遅延時間(秒)
+LogRotateSize = 1 * 10 ** 6         # log ローテーションサイズ(byte)
+
+
