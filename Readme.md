@@ -66,7 +66,7 @@ PC で録画した動画ファイルを、居間の TV に接続した Fire TV s
 
 ## 詳細
 インストール方法等の詳細は、
-[GitHub Pages](https://kaikoma-soft.github.io/seesaw.html)
+[GitHub Pages](https://kaikoma-soft.github.io/src/seesaw.html)
 を参照して下さい。
 
 
