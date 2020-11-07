@@ -41,7 +41,7 @@ class Arguments
       op.on('-t', 'test mode for notyet/done')      { |t| @test = !@test }
       op.on('-k','--kill', 'kill background proc')  { |t| @kill = true }
       op.on('-d', '--debug', 'debug mode')          { |t| @debug = !@debug }
-      op.on('-ll n','--loglevel','set log level')   { |t| @logLevel = t.to_i }
+      op.on('-l n','--loglevel','set log level')    { |t| @logLevel = t.to_i }
       op.on('-r', '--reload','data refresh')        { |t| @refresh = true }
     end
   end

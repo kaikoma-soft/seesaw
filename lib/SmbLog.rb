@@ -11,6 +11,8 @@ require 'sqlite3'
 
 class SmbLog
 
+  attr_reader  :acctime
+  
   def initialize( )
     @logfname = SambaLog
     @basedir  = OutputDir
@@ -24,8 +26,12 @@ class SmbLog
     else
       @timeStamp = Time.now.to_i
     end
-      
-    
+
+    str = StatStr.values.join("|")
+    ext = TargetExt.join("|")
+    @pathReg = /\/([^\/]*\/(#{str})\/.*?\.(#{ext}))$/
+    @acctime = Time.now
+
     open()
   end
 
@@ -118,16 +124,23 @@ class SmbLog
         end
         time = Time.local( y,m,d,h,m2,s )
         if time.to_i > @timeStamp
-          timeStamp = time.to_i 
-          if FileTest.symlink?( @basedir + "/" + fname )
-            if type == "open"
-              @openqueue << QueueData1.new( time,type,fname )
-              Log::puts("open #{fname} #{time}",3)
-            elsif type == "close"
-              Log::puts("close #{fname} #{time}",3)
-              openClose( fname, time )
+          timeStamp = time.to_i
+          if fname =~ @pathReg
+            fname2 = $1
+            path = (@basedir + "/" + fname2).gsub(/\/\//,'/')
+            if FileTest.symlink?( path )
+              if type == "open"
+                @openqueue << QueueData1.new( time,type,fname2 )
+                Log::puts("open #{fname2} #{time}",3)
+              elsif type == "close"
+                Log::puts("close #{fname2} #{time}",3)
+                openClose( fname2, time )
+              end
+            else
+              Log::puts("not found #{path}",5)
             end
           end
+          @acctime = Time.now
         end
       end
     end

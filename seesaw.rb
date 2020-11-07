@@ -80,7 +80,14 @@ class Main
 
       flu.find() if ( Time.now - flu.findtime ) > RefreshPeriod
 
-      sleep(10)
+      sa = ( Time.now - sm.acctime )
+      wtime = 60
+      if sa < 60
+        wtime = 2
+      elsif sa < 1800
+        wtime = 10
+      end
+      sleep(wtime)
     end
     
   end
