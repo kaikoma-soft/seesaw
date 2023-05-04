@@ -51,6 +51,10 @@ class FileListUp
       db.transaction do
         TargetDir.each do |base|
           topDir = File.basename( base )
+          unless test( ?d, base )
+            Log::puts("Error: dir not found #{base} ",0)
+            next
+          end
           Find.find( base ) do |abspath|
             ext = File.extname( abspath )
             if @ext[ ext ] == true
@@ -106,7 +110,10 @@ class FileListUp
       if dir1 != '..' && dir1 != '.'
         path = dir + "/" + dir1
         if test( ?d, path )
-          if Dir.entries( path ).size == 2
+          if FileTest.symlink?( path )
+            Log::puts("symlink #{path}" )
+            next
+          elsif Dir.entries( path ).size == 2
             Log::puts("rmdir #{path}" )
             Dir.rmdir( path )
           else
