@@ -12,10 +12,12 @@ class Arguments
   attr_reader :logLevel         # ログ出力のレベル
   attr_reader :kill             # バックグランドで実行しているものを殺す。
   attr_reader :refresh          # ディレクトリの再検索
+  attr_reader :web              # web の起動
+  attr_reader :httpPort         # http port 番号
 
   def initialize(argv)
     @background = false
-    @debug = true
+    @debug = false
     @inv = nil
     @test = false
     @logLevel = 1
@@ -23,6 +25,8 @@ class Arguments
     @done   = nil
     @kill   = false
     @refresh = false
+    @web    = false
+    @httpPort = 8888
     
     op = option_parser
     op.parse!(argv)
@@ -43,6 +47,8 @@ class Arguments
       op.on('-d', '--debug', 'debug mode')          { |t| @debug = !@debug }
       op.on('-l n','--loglevel','set log level')    { |t| @logLevel = t.to_i }
       op.on('-r', '--reload','data refresh')        { |t| @refresh = true }
+      op.on('-w', '--web','web interface')          { |t| @web = true }
+      op.on('-p n', '--port n','web port')          { |t| @httpPort = t.to_i }
     end
   end
 

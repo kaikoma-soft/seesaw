@@ -4,7 +4,6 @@
 #
 #  main 
 #
-require 'rubygems'
 require 'sqlite3'
 require_relative 'lib/require.rb'
 
@@ -55,6 +54,19 @@ class Main
   def mainLoop()
     Log::puts("main loop start")
 
+    #
+    # Ver1 の DB table に Ver2 のitem 追加
+    #
+    DBaccess.new( ).open do |db|
+      dbt = DBTarget.new
+      db.transaction do
+        if dbt.addidPath( db ) == true
+          # idPath の生成
+          dbt.makeidPath( db )
+        end
+      end
+    end
+    
     File.open( PidFile, "w") do |fp|
       fp.puts( Process.pid  )
     end
@@ -63,33 +75,31 @@ class Main
       FileUtils.remove_entry( OutputDir, true )
     end
 
+    #
+    #  対象ファイルのリストアップ
+    #
     flu = FileListUp.new()
-    flu.find()
-
-    sm = SmbLog.new()
-
-    while true
-      sm.readLog()
-      ret = sm.fetchCQ()
-      if ret.size > 0
-        inverter2( ret )
+    Thread.new do
+      while true
+        flu.find()
+        sleep( RefreshPeriod )
       end
-      if sm.reset?()
-        sm.reopen()
-      end
-
-      flu.find() if ( Time.now - flu.findtime ) > RefreshPeriod
-
-      sa = ( Time.now - sm.acctime )
-      wtime = 60
-      if sa < 60
-        wtime = 2
-      elsif sa < 1800
-        wtime = 10
-      end
-      sleep(wtime)
     end
+
+    #
+    #  ftp log 監視
+    #
+    retQ = Queue.new
+    sm = ProftpdLog.new()
+    sm.readLog_start( retQ )
     
+    while true
+      while ret = retQ.pop
+        inverter3( ret )
+        DBkeyval.new.timeStamp( :set, Time.now.to_i )
+      end
+      sleep(1)
+    end
   end
 
 
@@ -208,6 +218,33 @@ class Main
       end
     end
   end
+
+  #
+  #  ftp log 検出からの反転
+  #
+  def inverter3( r2 )
+    flu = FileListUp.new()
+    target = DBTarget.new
+
+    if r2.stat == StatStr[NA]
+      Log::puts("Skip: #{r2.idPath} is NA")
+      return
+    end
+    DBaccess.new().open do |db|
+      data = target.select( db, idpath: r2.idPath )
+      if data.size > 0
+        tmp = data.first 
+        newStat = tmp[:stat] == NotYet ? Done : NotYet
+        target.update( db, tmp[:id], stat: newStat )
+        flu.flip( tmp )
+        stat2 = newStat == Done ? "未->済" : "済->未"
+        Log::puts("#{stat2} #{r2.idPath}")
+      else
+        Log::puts("Error: inverter3() not found data #{r2.idPath}" )
+      end
+    end
+  end
+  
 
   def signalProc()
     Log::puts("signalProc()")

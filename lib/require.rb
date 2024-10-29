@@ -16,6 +16,9 @@ files.each do |cfg|
 end
 raise "counfig not found" if Object.const_defined?(:BaseDir) != true
 
+if Object.const_defined?(:TimeOffset) != true
+  Object.const_set("TimeOffset","JST" )
+end
 
 require_relative 'Const.rb'
 require_relative 'Arguments.rb'
@@ -25,5 +28,8 @@ require_relative 'DBTable.rb'
 require_relative 'DBTarget.rb'
 require_relative 'FileListUp.rb'
 require_relative 'Log.rb'
-require_relative 'SmbLog.rb'
+#require_relative 'SmbLog.rb'
+require_relative 'ProftpdLog.rb'
+
+
 

@@ -19,9 +19,11 @@ create table target (
     apath               text,     -- 絶対パス
     topdir              text,     -- TOP dir
     stat                integer,  -- 状態 0:未  1:既  2:除外
-    updatetime          integer   -- 更新日時
+    updatetime          integer,  -- 更新日時
+    idpath              text      -- 検索のための 加工された key
 );
 create index data1 on target (rpath) ;
+create index data2 on target (idpath) ;
 
 
 --

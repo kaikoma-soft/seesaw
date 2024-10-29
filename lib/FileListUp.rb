@@ -47,6 +47,12 @@ class FileListUp
   def find(  )
     now = Time.now.to_i
     target = DBTarget.new
+
+    # ２階層までの制限
+    base = TargetDir.map {|d| File.basename(d)}.join("|")
+    ext = TargetExt.join("|")
+    pathReg = /\/(#{base})\/[^\/]+\/[^\/]+\.(#{ext})$/
+    
     DBaccess.new().open do |db|
       db.transaction do
         TargetDir.each do |base|
@@ -61,6 +67,11 @@ class FileListUp
               path = abspath.sub(/^#{base}\//,'')
               stat = NotYet
               stat = NA if exclude?( abspath ) == true
+
+              # 階層数制限
+              unless abspath =~ pathReg
+                next
+              end
 
               # DB に登録
               ret = target.select( db, apath: abspath )

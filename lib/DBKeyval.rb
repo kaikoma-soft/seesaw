@@ -45,5 +45,25 @@ class DBkeyval
     sql = "INSERT OR REPLACE INTO #{@tbl_name} (key, val) VALUES (?,?) ;"
     db.execute( sql, key, val )
   end
+
+  #
+  #  タイムスタンプの保存/取得
+  #
+  def timeStamp( flag = :get, val = nil )
+    kv = self #DBkeyval.new
+    key = "timeStamp"
+    DBaccess.new().open do |db|
+      if flag == :get 
+        if ( ret = kv.select( db, key )) == nil
+          return 0
+        else
+          return ret
+        end
+      elsif flag == :set
+        kv.upsert( db, key, val )
+      end
+    end
+  end
+  
   
 end
