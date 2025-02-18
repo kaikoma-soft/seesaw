@@ -1,4 +1,18 @@
 
+ver 2.2.0         2025/02/18
+  * VLC が 3.6.3 にバージョンアップした際に、アクセスパターンが変わり
+    open/close が捕捉出来なくなったので、その対応。
+
+    本バージョンから proftpd.conf の設定を変更する必要があります。
+    旧  ExtendedLog    /var/log/proftpd/extende.log  READ,INFO,EXIT custom
+    新  ExtendedLog    /var/log/proftpd/extende.log  READ,MISC,EXIT custom
+
+    なおこの変更をしても、VLC がバックグラウンドでファイル一覧取得の動
+    作が行われる為、log の順番が乱れ、open/close の捕捉率は 90% 程度で
+    す。
+    
+ver 2.1.0         2024/11/29
+  * done/notyet オプションで、キーワードを複数指定できるように。
 
 ver 2.0.0         2024/11/29
   ・Ver1 は, ファイルサーバーとして samba を使用していたが、バージョン

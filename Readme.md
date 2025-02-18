@@ -74,8 +74,8 @@ PC で録画した動画ファイルを、居間の TV に接続した Fire TV s
 
 | サーバー側             | クライアント(1)   | クライアント(2)  |
 |------------------------|-------------------|------------------|
-| Ubuntu 22.04.4 LTS     | Fire HD 10 (2022) | Fire stick TV 4k |
-| ProFTPD Version 1.3.8b | VLC 3.5.4         | VLC 3.5.4        |
+| Ubuntu 24.04.1 LTS     | Fire HD 10 (2022) | Fire stick TV 4k |
+| ProFTPD Version 1.3.8b | VLC 3.6.3         | VLC 3.5.4        |
 
 
 

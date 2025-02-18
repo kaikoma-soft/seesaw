@@ -10,11 +10,12 @@ require 'sqlite3'
 require 'date'
 require 'thread'
 
+
 class Ldata
 
   attr_accessor :user, :time, :cmd, :path, :stat, :type
   attr_accessor :base, :topdir, :subdir, :linkPath, :idPath
-  attr_accessor :len, :delMark, :timeS, :rcode 
+  attr_accessor :len, :delMark, :timeS, :rcode, :chkMark
 
   @@topdirs = TargetDir.map {|tmp| File.basename( tmp ) }
 
@@ -29,6 +30,7 @@ class Ldata
     @type = nil
     @len  = nil
     @delMark = {}           #  削除フラグ
+    @chkMark = false
   end
 
   def makePath()
@@ -184,9 +186,10 @@ class ProftpdLog
   #
   #  削除の印を立てる
   #
-  def delMark( ary, id, n )
-    ary[n].delMark[id] = true
-    ary[n+1].delMark[id] = true
+  def delMark( ary, id, n, count=2 )
+    count.times do |m|
+      ary[n+m].delMark[id] = true
+    end
   end
   
   #
@@ -196,11 +199,10 @@ class ProftpdLog
     p1.delMark[id] = true
     p2.delMark[id] = true
   end
+
   
   #
-  #  log ファイル open,close の検出
-  #    SIZE の直後に RETR が来たら open
-  #    RETR の直後に QUIT or "_" が来たら close
+  #  extende.log から必要な要素の抽出
   #   
   def extendeLog( cmdQ, outQ )
     Log::puts("extendeLog() start",4)
@@ -215,17 +217,19 @@ class ProftpdLog
               time = timeConv( $2, $3 )
               val = $4
               next if time.to_i < @timeLimit
-              next if user == "-"
 
-              if val =~ /\"(RETR|SIZE)\s(.*?)\" (\d+)/
+              if val =~ /\"(RETR|REST)\s(.*?)\" (\d+)/
                 cmd = $1
                 fname = $2
                 rcode = $3.to_i
                 tmp = Ldata.new( user: user, path: fname, cmd: cmd, time: time, rcode: rcode )
                 tmp.adj( :link )
                 outQ << tmp
-              elsif val =~ /^\"QUIT\" /        # 無視
-                # NOP
+              elsif val =~ /^\"(EPSV)\" (\d+) /
+                cmd = $1
+                rcode = $2.to_i
+                tmp = Ldata.new( user: user, cmd: cmd, time: time, rcode: rcode  )
+                outQ << tmp
               elsif val =~ /^\"\" - \"-\"/     # 終端
                 tmp = Ldata.new( user: user, cmd: :fin, time: time ).adj
                 outQ << tmp
@@ -275,16 +279,27 @@ class ProftpdLog
   end
 
 
-  def dumpA( head, data )
+  def dumpA( head, data, id )
     @mutex ||= Mutex.new
     if $opt.debug == true
       if data.size > 0
+        fname = sprintf("%d.log",head )
         @mutex.synchronize do
-          Log::puts("-" * 10,5 )
-          data.each do |tmp|
-            timeS = tmp.time.strftime("%T")
-            str = tmp.type == nil ? tmp.cmd : tmp.type
-            Log::puts(sprintf( "%s> %s %-6s %s",head,timeS, str,tmp.base ),5 )
+          File.open( fname, "a" ) do |fp|
+            fp.puts("-" * 10 )
+            data.each do |tmp|
+              timeS = tmp.time.strftime("%T")
+              if head == 1
+                type = tmp.cmd
+              else
+                type = tmp.type == nil ? "" : tmp.type.to_s
+              end
+              del = tmp.delMark[id] == true ? "@" : " "
+              code = tmp.rcode == nil ? "" : tmp.rcode.to_s
+              fp.printf( "%s%s> %s %-5s %s %s\n",
+                         head.to_s,del,timeS, type, code, tmp.base )
+            end
+            fp.flush()
           end
         end
       end
@@ -300,7 +315,7 @@ class ProftpdLog
     while true
       @step3A << inQ.pop unless inQ.empty?
       if oldSize != @step3A.size
-        dumpA( "3", @step3A )
+        dumpA( 3, @step3A, id )
         oldSize = @step3A.size
       end
       
@@ -348,7 +363,7 @@ class ProftpdLog
 
       @step3A.delete_if do |tmp|
         if tmp.delMark[ id ] == true
-          Log::puts("step3 del #{tmp.base} #{tmp.timeS}",3)
+          #Log::puts("step3 del #{tmp.base} #{tmp.timeS}",3)
           true
         end
       end
@@ -358,15 +373,13 @@ class ProftpdLog
   end
 
   #
-  #  対応する close を探す
+  #  対応する open/close を探す
   #
-  def step2_find( ary, target )
+  def step2_find( ary, target, type )
     ary.each_with_index do |tmp, n |
-      if tmp.time > target.time
-        if tmp.type == :close
-          if tmp.idPath == target.idPath
-            return n
-          end
+      if tmp.type == type
+        if tmp.idPath == target.idPath
+          return n
         end
       end
     end
@@ -380,26 +393,49 @@ class ProftpdLog
     id = :step2
     while ret = inQ.pop
       @step2A << ret
-      dumpA( "2", @step2A )
+      dumpA( 2, @step2A, id )
       
       now = Time.now
       @step2A.each_with_index do |tmp1,n|
-        break if @step2A[n+1] == nil
-
+        next if tmp1.delMark[id] == true
+        
         if tmp1.type == :open
-          if ( m = step2_find( @step2A, tmp1 )) != nil
-            tmp2 = @step2A[m]
-            len = tmp2.time - tmp1.time
-            if len > 2      # 2秒以上を登録
-              Log::puts("step2 add step3 #{tmp1.base} #{tmp2.timeS} - #{tmp1.timeS} = #{len}",3)
-              tmp2.type = len > DoneTime ? :long : :short
-              tmp2.len  = len
-              outQ << tmp2
-              delMark2( tmp1, tmp2, id )
-            else
-              Log::puts("step2 ignore #{tmp1.base} #{tmp2.timeS} - #{tmp1.timeS} = #{len}",3)
-              delMark2( tmp1, tmp2, id )
+          if @step2A[ n+1 ] != nil and @step2A[ n+1 ].type == :open # 重複は削除
+            tmp2 = @step2A[n+1]
+            sa = ( tmp2.time - tmp1.time ).abs
+            if sa < 1.0
+              tmp2.delMark[id] = true
+              break
             end
+          end
+        elsif tmp1.type == :close or tmp1.type == :closeD
+          m = step2_find( @step2A, tmp1, :open )
+          if m != nil
+            tmp2 = @step2A[m]
+            len = tmp1.time - tmp2.time
+            if len < 0
+              next
+            elsif len > 2      # 3秒以上を登録
+              Log::puts("step2: add step3 #{tmp1.base} #{tmp2.timeS} - #{tmp1.timeS} = #{len}",3)
+              tmp1.type = len > DoneTime ? :long : :short
+              tmp1.len  = len
+              outQ << tmp1
+              delMark2( tmp1, tmp2, id )
+              break
+            else
+              if tmp1.type == :closeD
+                Log::puts("step2: dummy close #{tmp1.base} #{tmp1.timeS}",3)
+                tmp1.delMark[id] = true
+              else
+                Log::puts("step2: ignore #{tmp1.base} #{tmp2.timeS} - #{tmp1.timeS} = #{len}",3)
+                delMark2( tmp1, tmp2, id )
+                break
+              end
+            end
+          else
+            Log::puts("step2: open not found #{tmp1.base} #{tmp1.timeS}",3)
+            tmp1.delMark[id] = true
+            break
           end
         end
         if ( now - tmp1.time ) > 3600 * 3 # 古くなったものは捨てる
@@ -409,7 +445,7 @@ class ProftpdLog
       end
       @step2A.delete_if do |tmp|
         if tmp.delMark[id] == true
-          Log::puts("step2 del #{tmp.base} #{tmp.timeS}",3)
+          #Log::puts("step2 del #{tmp.base} #{tmp.timeS}",3)
           true
         end
       end
@@ -421,43 +457,83 @@ class ProftpdLog
   #
   def pushQ( type, data, queue )
     data.type = type
-    Log::puts( sprintf("%5s  #{data.idPath} #{data.timeS}",type.to_s),3)
+    Log::puts( sprintf("pushQ(%5s  #{data.idPath} #{data.timeS})",type.to_s),3)
     queue << data
   end
     
+
+  #
+  #  キーワードが揃っているかチェック
+  #
+  def step1sub( ary, n, list, timeLimit = 0.5 )
+    endTime = ary[n].time + timeLimit
+    ary.each {|v| v.chkMark = false }
+
+    #pp "----" * 4 + list.join(",")
+    list.each do |item|
+      flag = false
+      n.upto( ary.size - 1) do |m|
+        next if ary[m].chkMark == true
+        #pp ary[m].cmd,item
+        if ary[m].cmd == item
+          ary[m].chkMark = true
+          flag = true
+          #printf("%s found\n",item )
+          break
+        end
+        if ary[m].time > endTime
+          #printf("%s time out %s \n",item, ary[m].time )
+          return false
+        end
+      end
+      if flag == false
+        #printf("%s not found\n",item )
+        return false
+      end
+    end
+    return true
+  end
 
   #
   #  step1: log から、有効成分を抽出、無効成分を削除
   #
   def step1( inQ, outQ )
     id = :step1
+    openCmd = %W( EPSV RETR EPSV REST RETR )
+    closeCmd = [ "RETR", :fin ]
+
     while ret = inQ.pop
-      @step1A << ret
-      dumpA( "1", @step1A )
+      @step1A << ret 
+      dumpA( 1, @step1A, id )
 
       @step1A.each_with_index do |tmp,n|
-        break if @step1A[n+1] == nil
         next if tmp.delMark[id] == true
 
-        if @step1A[n].cmd == "SIZE" and @step1A[n+1].cmd == "RETR"
-          if @step1A[n].idPath == @step1A[n+1].idPath
-            pushQ( :open, @step1A[n], outQ )
-            delMark( @step1A, id, n )
+        if @step1A[n].cmd == "EPSV" and ( @step1A.size > 4 )
+          if step1sub( @step1A, n, openCmd ) == true
+            pushQ( :open, @step1A[n+1], outQ )
+            @step1A.clear
+            break
           end
-        elsif @step1A[n].cmd == "RETR" and @step1A[n+1].cmd == :fin
-          @step1A[n].time = @step1A[n+1].time
-          @step1A[n].timeS = @step1A[n+1].timeS
-          pushQ( :close, @step1A[n], outQ )
-          @step1A.clear
-        elsif @step1A[n].cmd == "SIZE" and @step1A[n+1].cmd == :fin
-          if @step1A[n].rcode == 550
-            delMark( @step1A, id, n )
+        elsif @step1A[n].cmd == "RETR"
+          if step1sub( @step1A, n, closeCmd ) == true
+            @step1A[n].time = @step1A[n+1].time
+            @step1A[n].timeS = @step1A[n+1].timeS
+            pushQ( :close, @step1A[n], outQ )
+            @step1A.clear
+            break
           end
         end
+        if @step1A[n+1] != nil and
+          @step1A[n].cmd == "EPSV" and
+          @step1A[n+1].cmd == :fin 
+          delMark( @step1A, id, n , 2 )
+        end
       end
+      
       @step1A.delete_if do |tmp|
         if tmp.delMark[id] == true
-          Log::puts("extendeLog del #{tmp.base} #{tmp.timeS}",3)
+          #Log::puts("extendeLog del #{tmp.base} #{tmp.timeS}",3)
           true
         end
       end

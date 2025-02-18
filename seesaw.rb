@@ -27,14 +27,12 @@ class Main
       killPid()
     elsif $opt.refresh == true
       killPid( :USR1 )
-    elsif $opt.notyet != nil 
-      inverter( :notyet, $opt.notyet )
-      exit
-    elsif $opt.done != nil 
-      inverter( :done, $opt.done )
+    elsif $opt.way != nil
+      inverter( $opt.way, $opt.key )
       exit
     end
 
+    
     File.open( LockFN, File::RDWR|File::CREAT, 0644) do |fl|
       if fl.flock(File::LOCK_EX|File::LOCK_NB) == false
         puts("Error: #{PNAME} locked\n")
@@ -150,23 +148,25 @@ class Main
   #
   #  オプションからの 強制設定
   #
-  def inverter( type, str )
+  def inverter( type, strs )
     flu = FileListUp.new()
-    reg = Regexp.new( str )
     target = DBTarget.new
-    type2 = type == :done ? 1 : 0
+    type2 = type == Done ? 1 : 0
     
     DBaccess.new().open do |db|
       db.transaction do
-        target.select( db ).each do |r|
-          if reg =~ r[:rpath] and type2 != r[:stat] and r[:stat] != 2
-            stat = r[:stat] == 0 ? "未->既" : "既->未"
-            Log::puts("#{stat} #{r[:rpath]}")
+        strs.each do |str|
+          reg = Regexp.new( str )
+          target.select( db ).each do |r|
+            if reg =~ r[:rpath] and type != r[:stat] and r[:stat] != NA
+              stat = r[:stat] == NotYet ? "未->既" : "既->未"
+              Log::puts("#{stat} #{r[:rpath]}")
 
-            stat2 = r[:stat] == 0 ? 1 : 0
-            if $opt.test == false
-              target.update( db, r[:id], stat: stat2 )
-              flu.flip( r )
+              stat2 = r[:stat] == NotYet ? Done : NotYet
+              if $opt.test == false
+                target.update( db, r[:id], stat: stat2 )
+                flu.flip( r )
+              end
             end
           end
         end
@@ -264,7 +264,6 @@ class Main
 
   
 end
-
 
 
 Main.new(ARGV).run if $0 == __FILE__

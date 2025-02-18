@@ -58,8 +58,8 @@ class FileListUp
         TargetDir.each do |base|
           topDir = File.basename( base )
           unless test( ?d, base )
-            Log::puts("Error: dir not found #{base} ",0)
-            next
+            Log::puts("Error: dir not found #{base}",0)
+            return nil
           end
           Find.find( base ) do |abspath|
             ext = File.extname( abspath )
