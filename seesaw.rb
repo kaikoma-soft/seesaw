@@ -176,50 +176,6 @@ class Main
   end
 
   #
-  #  smb log 検出からの反転
-  #
-  def inverter2( r )
-    flu = FileListUp.new()
-    statStr2 = {}
-    StatStr.each_pair { |k,v| statStr2[v] = k }
-
-    data = []
-    target = DBTarget.new
-    DBaccess.new().open do |db|
-      data = target.select( db )
-    end
-
-    r.each do |r2|
-      if r2 =~ /^(.*?)\/(.*?)\/(.*)/
-        topdir = $1
-        type = $2
-        path = $3
-        stat = statStr2[ type ]
-        ff   = false
-        next if stat == NA
-        data.each do |r3|
-          if stat == r3[:stat] and path == r3[:rpath] and topdir = r3[:topdir]
-            stat2 = stat == 0 ? "未->済" : "済->未"
-            Log::puts("#{stat2} #{r3[:rpath]}")
-            stat2 = r3[:stat] == 0 ? 1 : 0
-            DBaccess.new().open do |db|
-              target.update( db, r3[:id], stat: stat2 )
-            end
-            flu.flip( r3 )
-            ff = true
-            break
-          end
-        end
-        if ff == false
-          Log::puts("Error: inverter2() not found data #{path}" )
-        end
-      else
-        Log::puts("Error: inverter2() not match #{r2}" )
-      end
-    end
-  end
-
-  #
   #  ftp log 検出からの反転
   #
   def inverter3( r2 )
@@ -230,6 +186,11 @@ class Main
       Log::puts("Skip: #{r2.idPath} is NA")
       return
     end
+    if $nowPlay != nil and $nowPlay == r2.idPath
+      Log::puts("Skip: #{r2.idPath} is now Paly")
+      return
+    end
+    
     DBaccess.new().open do |db|
       data = target.select( db, idpath: r2.idPath )
       if data.size > 0

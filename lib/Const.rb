@@ -1,7 +1,7 @@
 # coding: utf-8
 
 PNAME     = "seesaw"
-Version   = "2.2.0"
+Version   = "3.0.0"
 
 LockFN    = BaseDir + "/#{PNAME}.lock"
 PidFile   = BaseDir + "/#{PNAME}.pid"

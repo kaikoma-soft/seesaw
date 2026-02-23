@@ -11,11 +11,7 @@ RefreshPeriod = 3600            # データ更新周期(秒)
 DoneTime      = 60              # 視聴済にする再生時間(秒)
 FlipDelay     = 60              # close から反転処理までの遅延時間(秒)
 LogRotateSize = 1 * 10 ** 6     # log ローテーションサイズ(byte)
+TimeOffset = "JST"
 
-# Ver1
-#SambaLog  = "/var/log/smb_acc.log"
-
-# Ver2 
-ProftpdLogFN = "/var/log/proftpd/extende.log"
-TimeOffset   = "JST"            # log の日時に対する時差
-
+# Ver3
+ExteFN="/var/log/proftpd/download.log"

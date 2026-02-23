@@ -1,4 +1,16 @@
 
+ver 3.0.0         2026/02/08
+    ファイルの open/close の捕捉率が悪かったので、proftpd のログの出し
+    方を変更。それに伴いプログラムの方も変更。
+    
+    # /etc/proftpd/proftpd.conf の設定
+    LogFormat download_stats "%{iso8601} %P %m %s \"%J\" \"%E\""
+    ExtendedLog /var/log/proftpd/download.log READ,EXIT download_stats
+
+    # config.rb の設定
+    ExteFN="/var/log/proftpd/download.log"
+
+
 ver 2.2.0         2025/02/18
   * VLC が 3.6.3 にバージョンアップした際に、アクセスパターンが変わり
     open/close が捕捉出来なくなったので、その対応。

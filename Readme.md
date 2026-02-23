@@ -74,14 +74,14 @@ PC で録画した動画ファイルを、居間の TV に接続した Fire TV s
 
 | サーバー側             | クライアント(1)   | クライアント(2)  |
 |------------------------|-------------------|------------------|
-| Ubuntu 24.04.1 LTS     | Fire HD 10 (2022) | Fire stick TV 4k |
-| ProFTPD Version 1.3.8b | VLC 3.6.3         | VLC 3.5.4        |
+| Ubuntu 24.04.3 LTS     | Fire HD 10 (2022) | Fire stick TV 4k |
+| ProFTPD Version 1.3.8b | VLC 3.6.5         | VLC 3.6.5        |
 
 
 
 ## 詳細
 インストール方法等の詳細は、
-[GitHub Pages](https://kaikoma-soft.github.io/src/seesaw2.html)
+[GitHub Pages](https://kaikoma-soft.github.io/src/seesaw3.html)
 を参照して下さい。
 
 
